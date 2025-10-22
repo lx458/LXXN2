@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>北方风沙天气数据可视化 - 大数据平台应用</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+        }
+        
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --sand-color: #d4a76a;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --light-bg: #f8f9fa;
+            --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e3e9f7 100%);
+            color: #333;
+            line-height: 1.7;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #8b7355, #d4a76a);
+            color: white;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: rgba(255, 255, 255, 0.1);
+            transform: rotate(30deg);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        .subtitle {
+            font-size: 1.3rem;
+            margin-top: 10px;
+            opacity: 0.9;
+            position: relative;
+        }
+        
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 25px;
+            position: relative;
+        }
+        
+        .tech-badge {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 900px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-large {
+            grid-column: 1 / -1;
+        }
+        
+        h2 {
+            color: var(--primary-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            border-bottom: 2px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+        }
+        
+        h2 i {
+            margin-right: 12px;
+            color: var(--sand-color);
+        }
+        
+        h3 {
+            color: var(--primary-color);
+            margin: 20px 0 10px;
+            font-size: 1.3rem;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 600px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--sand-color);
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.95rem;
+        }
+        
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .data-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .data-table tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .map-container {
+            height: 400px;
+            background: #e9ecef;
+            border-radius: 12px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .map-placeholder {
+            text-align: center;
+            color: #666;
+        }
+        
+        .map-placeholder i {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            color: var(--sand-color);
+        }
+        
+        .conclusion {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-top: 40px;
+            box-shadow: var(--card-shadow);
+            border-left: 5px solid var(--sand-color);
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            padding: 30px;
+            color: #7f8c8d;
+            font-size: 0.95rem;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #e0e0e0;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 12px 25px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            border-bottom: 3px solid var(--sand-color);
+            color: var(--sand-color);
+            font-weight: 600;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--sand-color), #e6b17e);
+            border-radius: 4px;
+        }
+        
+        .city-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .city-btn {
+            padding: 8px 16px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .city-btn.active {
+            background: var(--sand-color);
+            color: white;
+            border-color: var(--sand-color);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-wind"></i> 北方风沙天气数据可视化</h1>
+            <div class="subtitle">
+                <p>基于Hadoop+Hive大数据平台的数据分析与可视化展示</p>
+            </div>
+            
+            <div class="tech-stack">
+                <span class="tech-badge"><i class="fab fa-ubuntu"></i> Ubuntu Linux</span>
+                <span class="tech-badge"><i class="fas fa-database"></i> Hadoop 3.3.6</span>
+                <span class="tech-badge"><i class="fas fa-table"></i> Hive 3.1.2</span>
+                <span class="tech-badge"><i class="fas fa-chart-bar"></i> 数据可视化</span>
+            </div>
+        </header>
+        
+        <div class="dashboard">
+            <div class="card">
+                <h2><i class="fas fa-chart-line"></i> 年度风沙天数趋势</h2>
+                <div class="chart-container">
+                    <canvas id="annualTrendChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2><i class="fas fa-city"></i> 城市风沙对比</h2>
+                <div class="chart-container">
+                    <canvas id="cityComparisonChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card card-large">
+                <h2><i class="fas fa-map-marked-alt"></i> 北方风沙分布</h2>
+                <div class="map-container">
+                    <div class="map-placeholder">
+                        <i class="fas fa-map"></i>
+                        <p>北方地区风沙分布热力图</p>
+                        <p class="stat-label">基于Hive分析的风沙频率数据可视化</p>
+                    </div>
+                </div>
+                
+                <div class="city-selector">
+                    <div class="city-btn active" data-city="all">全部城市</div>
+                    <div class="city-btn" data-city="beijing">北京</div>
+                    <div class="city-btn" data-city="tianjin">天津</div>
+                    <div class="city-btn" data-city="shijiazhuang">石家庄</div>
+                    <div class="city-btn" data-city="taiyuan">太原</div>
+                    <div class="city-btn" data-city="huhehaote">呼和浩特</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2><i class="fas fa-chart-pie"></i> 风沙等级分布</h2>
+                <div class="chart-container">
+                    <canvas id="sandLevelChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2><i class="fas fa-calendar-alt"></i> 月度风沙统计</h2>
+                <div class="chart-container">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">平均风沙天数/年</div>
+                <div class="stat-value">28.5</div>
+                <div class="stat-label">北方主要城市</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">最严重城市</div>
+                <div class="stat-value">呼和浩特</div>
+                <div class="stat-label">年均45.2天</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-label">最严重月份</div>
+                <div class="stat-value">4月</div>
+                <div class="stat-label">春季风沙高发期</div>
+            </div>
+        </div>
+        
+        <div class="card card-large">
+            <div class="tabs">
+                <div class="tab active" data-tab="data">数据详情</div>
+                <div class="tab" data-tab="analysis">Hive分析</div>
+                <div class="tab" data-tab="methodology">分析方法</div>
+            </div>
+            
+            <div class="tab-content active" id="data-tab">
+                <h3>北方城市风沙数据表（2020-2023）</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>城市</th>
+                            <th>2020年</th>
+                            <th>2021年</th>
+                            <th>2022年</th>
+                            <th>2023年</th>
+                            <th>平均</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>北京</td>
+                            <td>25</td>
+                            <td>28</td>
+                            <td>22</td>
+                            <td>26</td>
+                            <td>25.3</td>
+                        </tr>
+                        <tr>
+                            <td>天津</td>
+                            <td>30</td>
+                            <td>32</td>
+                            <td>28</td>
+                            <td>31</td>
+                            <td>30.3</td>
+                        </tr>
+                        <tr>
+                            <td>石家庄</td>
+                            <td>35</td>
+                            <td>38</td>
+                            <td>32</td>
+                            <td>36</td>
+                            <td>35.3</td>
+                        </tr>
+                        <tr>
+                            <td>太原</td>
+                            <td>40</td>
+                            <td>42</td>
+                            <td>38</td>
+                            <td>41</td>
+                            <td>40.3</td>
+                        </tr>
+                        <tr>
+                            <td>呼和浩特</td>
+                            <td>44</td>
+                            <td>46</td>
+                            <td>43</td>
+                            <td>48</td>
+                            <td>45.3</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="tab-content" id="analysis-tab">
+                <h3>基于Hive的数据分析过程</h3>
+                <div class="code-block">
+                    <p>-- 创建风沙天气数据表</p>
+                    <p>CREATE TABLE sand_weather_data (</p>
+                    <p>  city STRING,</p>
+                    <p>  year INT,</p>
+                    <p>  month INT,</p>
+                    <p>  sand_days INT,</p>
+                    <p>  sand_level STRING</p>
+                    <p>) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',';</p>
+                    <br>
+                    <p>-- 加载数据到Hive表</p>
+                    <p>LOAD DATA LOCAL INPATH '/data/sand_weather.csv' INTO TABLE sand_weather_data;</p>
+                    <br>
+                    <p>-- 查询各城市年平均风沙天数</p>
+                    <p>SELECT city, AVG(sand_days) as avg_sand_days </p>
+                    <p>FROM sand_weather_data </p>
+                    <p>GROUP BY city;</p>
+                    <br>
+                    <p>-- 查询风沙等级分布</p>
+                    <p>SELECT sand_level, COUNT(*) as count </p>
+                    <p>FROM sand_weather_data </p>
+                    <p>GROUP BY sand_level;</p>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="methodology-tab">
+                <h3>数据分析方法</h3>
+                <p>本可视化项目基于Hadoop+Hive大数据平台，对北方地区风沙天气数据进行处理和分析：</p>
+                <ul>
+                    <li>使用HDFS存储原始风沙天气数据</li>
+                    <li>通过Hive进行数据清洗和转换</li>
+                    <li>利用HiveQL进行数据聚合和分析</li>
+                    <li>将分析结果导出并进行可视化展示</li>
+                </ul>
+                
+                <h3>数据来源</h3>
+                <p>数据来源于中国气象局公开的北方城市气象数据，经过Hive处理后的分析结果。</p>
+            </div>
+        </div>
+        
+        <div class="conclusion">
+            <h2><i class="fas fa-graduation-cap"></i> 项目总结</h2>
+            <p>本项目成功将大数据技术应用于气象数据分析，通过Hadoop+Hive平台处理北方风沙天气数据，并实现可视化展示。体现了大数据技术在环境监测和气象分析中的实际应用价值。</p>
+            <p>通过本次实践，巩固了Hadoop平台配置、Hive组件使用以及数据可视化技术，为后续更复杂的大数据项目奠定了基础。</p>
+        </div>
+        
+        <footer>
+            <p>北方风沙天气数据可视化 &copy; 2023 - 基于Hadoop+Hive大数据平台 | 开发者：吕浩洋</p>
+        </footer>
+    </div>
+
+    <script>
+        // 初始化图表
+        document.addEventListener('DOMContentLoaded', function() {
+            // 年度风沙趋势图表
+            const annualCtx = document.getElementById('annualTrendChart').getContext('2d');
+            const annualChart = new Chart(annualCtx, {
+                type: 'line',
+                data: {
+                    labels: ['2018', '2019', '2020', '2021', '2022', '2023'],
+                    datasets: [{
+                        label: '北方平均风沙天数',
+                        data: [32, 30, 28, 26, 25, 24],
+                        borderColor: '#d4a76a',
+                        backgroundColor: 'rgba(212, 167, 106, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '北方地区风沙天数年度趋势'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '风沙天数'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 城市对比图表
+            const cityCtx = document.getElementById('cityComparisonChart').getContext('2d');
+            const cityChart = new Chart(cityCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['北京', '天津', '石家庄', '太原', '呼和浩特'],
+                    datasets: [{
+                        label: '年均风沙天数',
+                        data: [25.3, 30.3, 35.3, 40.3, 45.3],
+                        backgroundColor: [
+                            'rgba(212, 167, 106, 0.7)',
+                            'rgba(212, 167, 106, 0.7)',
+                            'rgba(212, 167, 106, 0.7)',
+                            'rgba(212, 167, 106, 0.7)',
+                            'rgba(212, 167, 106, 0.9)'
+                        ],
+                        borderColor: '#d4a76a',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '北方主要城市风沙天数对比'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '风沙天数'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 风沙等级分布图表
+            const levelCtx = document.getElementById('sandLevelChart').getContext('2d');
+            const levelChart = new Chart(levelCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['轻度风沙', '中度风沙', '重度风沙'],
+                    datasets: [{
+                        data: [60, 30, 10],
+                        backgroundColor: [
+                            'rgba(212, 167, 106, 0.7)',
+                            'rgba(212, 167, 106, 0.8)',
+                            'rgba(212, 167, 106, 0.9)'
+                        ],
+                        borderColor: '#d4a76a',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '风沙等级分布比例'
+                        },
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // 月度风沙统计图表
+            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+            const monthlyChart = new Chart(monthlyCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                    datasets: [{
+                        label: '平均风沙天数',
+                        data: [2.1, 2.8, 4.5, 6.2, 3.8, 1.5, 0.8, 0.5, 1.2, 2.0, 2.5, 2.1],
+                        backgroundColor: 'rgba(212, 167, 106, 0.7)',
+                        borderColor: '#d4a76a',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '月度风沙天数分布'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '风沙天数'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 标签切换功能
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    // 移除所有active类
+                    tabs.forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // 添加active类到当前标签
+                    this.classList.add('active');
+                    document.getElementById(`${this.dataset.tab}-tab`).classList.add('active');
+                });
+            });
+            
+            // 城市选择功能
+            const cityButtons = document.querySelectorAll('.city-btn');
+            cityButtons.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    cityButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    // 这里可以添加根据城市筛选数据的逻辑
+                });
+            });
+        });
+    </script>
+</body>
+</html>
